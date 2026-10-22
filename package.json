@@ -6,7 +6,7 @@
   "description": "Lightweight shared-password OIDC provider for personal Google Workspace SSO on Cloudflare Workers.",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --config wrangler.production.toml",
     "test": "node test/run.ts",
     "typecheck": "tsc --noEmit"
   },

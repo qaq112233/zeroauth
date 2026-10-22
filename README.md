@@ -62,24 +62,27 @@ npm ci
 npm run typecheck
 npm test
 npx wrangler login
+cp wrangler.toml wrangler.production.toml
 ```
+
+仓库中的 `wrangler.toml` 仅为通用模板。所有真实域名、账号 ID、KV ID、Client ID 和 Google 回调地址只填入本机的 `wrangler.production.toml`；此文件已被 Git 忽略，不要提交或粘贴到公开 Issue、日志中。`npm run deploy` 会自动选择此私有配置文件。以后如使用 GitHub Actions，应通过仓库或 Environment Secrets 注入真实配置，避免在工作流及构建日志中输出。
 
 ### 2. 配置原有授权码 KV
 
 更新现有部署时，可以继续使用原来的 `ZEROAUTH_CODES` namespace。新账号部署时创建自己的 namespace：
 
 ```bash
-npx wrangler kv namespace create ZEROAUTH_CODES
-npx wrangler kv namespace create ZEROAUTH_CODES --preview
+npx wrangler kv namespace create ZEROAUTH_CODES --config wrangler.production.toml
+npx wrangler kv namespace create ZEROAUTH_CODES --preview --config wrangler.production.toml
 ```
 
-把两次返回的 ID 分别填入 `wrangler.toml` 中已有的 `[[kv_namespaces]]` 的 `id` 和 `preview_id`。仓库中的 ID 属于原部署，不能直接当作新账号的 namespace。保持 `binding = "ZEROAUTH_CODES"`。
+把两次返回的 ID 分别填入 `wrangler.production.toml` 中已有的 `[[kv_namespaces]]` 的 `id` 和 `preview_id`。仓库模板中的全零 ID 是占位符，必须替换。保持 `binding = "ZEROAUTH_CODES"`。
 
-### 3. 配置非敏感变量
+### 3. 配置本机生产参数
 
 运行 `node scripts/generate-jwk.mjs` 生成独有的 RSA 私钥和 `kid`。不要使用历史版本示例中的公开私钥。
 
-在 `wrangler.toml` 添加以下 `[vars]`，修改示例值：
+在 `wrangler.production.toml` 添加以下 `[vars]`，修改示例值：
 
 ```toml
 [vars]
@@ -96,6 +99,7 @@ ZEROAUTH_TOKEN_TTL_SECONDS = "3600"
 - 域名填写 Google 用户**主邮箱**使用的真实域名，多个域名用逗号分隔。不要填写 `@`、URL 或 `*`。
 - 首次可暂时留空 Redirect URI。此时任何授权请求都被拒绝，但配齐 Secrets 后 discovery 和 JWKS 可供 Google 校验。
 - `.dev.vars` 只用于本地开发，不会自动作为线上 Secrets 上传。
+- 使用自定义域名时，在此私有文件添加 `routes = [{ pattern = "auth.example.com", custom_domain = true }]`（放在 `[vars]` 和 `[[kv_namespaces]]` 之前），将 Issuer 设置为同一 HTTPS 域名，并按需设置 `workers_dev = false`。域名须位于当前 Cloudflare 账号管理的活动区域。
 
 ### 4. 创建 Worker 并设置 Secrets
 
@@ -108,9 +112,9 @@ npm run deploy
 尚未配置 Secrets 时接口会返回配置错误。核对部署输出的 URL，如有不同，更新 `ZEROAUTH_ISSUER`。然后交互式设置三个 Secrets：
 
 ```bash
-npx wrangler secret put ZEROAUTH_PASSWORD
-npx wrangler secret put ZEROAUTH_CLIENT_SECRET
-npx wrangler secret put ZEROAUTH_PRIVATE_JWK
+npx wrangler secret put ZEROAUTH_PASSWORD --config wrangler.production.toml
+npx wrangler secret put ZEROAUTH_CLIENT_SECRET --config wrangler.production.toml
+npx wrangler secret put ZEROAUTH_PRIVATE_JWK --config wrangler.production.toml
 npm run deploy
 ```
 
@@ -146,7 +150,7 @@ Google 的接入要求是 Authorization Code Flow，且 ID Token 的 `email` 必
    | Change password URL（如界面要求） | `https://你的Worker主机/change-password` |
 
 4. 保存后，在新 OIDC 配置的设置页复制 Google 显示的 **Redirect URI**。
-5. 将该 URI 原样填入 `wrangler.toml` 的 `ZEROAUTH_ALLOWED_REDIRECT_URIS`，再运行 `npm run deploy`。不需要自己猜测 Google 回调地址，也不需要在 Google Cloud Console 创建用于“使用 Google 登录”的 OAuth 客户端。
+5. 将该 URI 原样填入本机 `wrangler.production.toml` 的 `ZEROAUTH_ALLOWED_REDIRECT_URIS`，再运行 `npm run deploy`。不需要自己猜测 Google 回调地址，也不需要在 Google Cloud Console 创建用于“使用 Google 登录”的 OAuth 客户端。
 6. 回到 Google Admin，在 **管理 SSO 配置文件分配** 中，把新建的配置分配给需要使用 SSO 的组织单位（OU）或群组，保存。仅创建配置而不分配，用户不会走 ZeroAuth。
 7. 使用普通 Google 用户做联调。Google 的新 SSO 配置不支持超级管理员通过该配置进行 SSO；超级管理员保留直接使用 Google 凭据登录管理后台的路径。
 8. 在同一浏览器中启动 `user01@example.com` 的 Google 登录，确认跳到 ZeroAuth、目标邮箱正确，输入统一密码后返回 Google；再启动 `user02@example.com` 的登录，确认只需点“确认登录”且最终进入 user02。
@@ -201,7 +205,7 @@ ZEROAUTH_ALLOWED_EMAIL_DOMAINS = "example.com,second.example"
 ```bash
 npm run typecheck
 npm test
-npx wrangler deploy --dry-run
+npm run deploy -- --dry-run
 ```
 
 测试覆盖正确/错误密码、直接请求无法绕过、多个邮箱共用密码、记住浏览器后确认登录、Cookie/表单篡改、CSRF、过期、密码更新、域名限制，以及原有 token 兑换、PKCE、nonce、state、userinfo、JWKS 和 RS256 签名验证。自动测试使用本地模拟 KV；真实 Cloudflare 部署与 Google 登录仍需按上面的步骤进行联调。

@@ -6,3 +6,7 @@ coverage/
 dist/
 .codex
 .DS_Store
+
+# Private production deployment settings; never commit real account/domain/redirect values.
+wrangler.production.toml
+.deployment/

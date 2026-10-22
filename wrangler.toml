@@ -6,5 +6,5 @@ preview_urls = false
 
 [[kv_namespaces]]
 binding = "ZEROAUTH_CODES"
-id = "1cf2ed9509b8432597b2eebb0670fdb6"
-preview_id = "b8160bbc281e47dfbdae2a83e9a169e1"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"
