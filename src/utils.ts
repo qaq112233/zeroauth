@@ -104,10 +104,6 @@ export function normalizeScope(scope: string): string {
   return [...new Set(scope.trim().split(/\s+/).filter(Boolean))].join(' ');
 }
 
-export function parseBooleanFlag(value: string | undefined): boolean {
-  return value === 'true';
-}
-
 export function parseRedirectUriList(value: string | undefined): Set<string> {
   if (!value || !value.trim()) {
     return new Set();

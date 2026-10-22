@@ -1,6 +1,6 @@
 import { ConfigurationError } from './errors.ts';
 import type { Env, RuntimeConfig } from './types.ts';
-import { assertAbsoluteUrl, parseBooleanFlag, parseRedirectUriList } from './utils.ts';
+import { assertAbsoluteUrl, parseRedirectUriList } from './utils.ts';
 
 function assertNotPlaceholder(value: string, fieldName: string): void {
   if (value.includes('replace-me')) {
@@ -25,6 +25,18 @@ function parsePositiveInteger(value: string | undefined, fallback: number, field
 }
 
 export function readConfig(env: Env, request: Request): RuntimeConfig {
+  if (!env.ZEROAUTH_PASSWORD) {
+    throw new ConfigurationError('ZEROAUTH_PASSWORD is required');
+  }
+  assertNotPlaceholder(env.ZEROAUTH_PASSWORD, 'ZEROAUTH_PASSWORD');
+
+  const domains = (env.ZEROAUTH_ALLOWED_EMAIL_DOMAINS ?? '')
+    .split(',').map((domain) => domain.trim().toLowerCase()).filter(Boolean);
+  if (!domains.length || domains.some((domain) =>
+    !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(domain)
+  )) {
+    throw new ConfigurationError('ZEROAUTH_ALLOWED_EMAIL_DOMAINS must contain comma-separated exact domain names');
+  }
   if (!env.ZEROAUTH_CLIENT_ID) {
     throw new ConfigurationError('ZEROAUTH_CLIENT_ID is required');
   }
@@ -62,7 +74,8 @@ export function readConfig(env: Env, request: Request): RuntimeConfig {
 
   try {
     return {
-      allowAnyLoginHint: parseBooleanFlag(env.ZEROAUTH_ALLOW_ANY_LOGIN_HINT),
+      password: env.ZEROAUTH_PASSWORD,
+      allowedEmailDomains: new Set(domains),
       allowedRedirectUris: parseRedirectUriList(env.ZEROAUTH_ALLOWED_REDIRECT_URIS),
       authCodeTtlSeconds: parsePositiveInteger(
         env.ZEROAUTH_AUTH_CODE_TTL_SECONDS,
@@ -73,7 +86,7 @@ export function readConfig(env: Env, request: Request): RuntimeConfig {
       clientSecret: env.ZEROAUTH_CLIENT_SECRET,
       issuer,
       kid: env.ZEROAUTH_KID,
-      origin: issuer,
+      origin: new URL(issuer).origin,
       privateJwk,
       tokenTtlSeconds: parsePositiveInteger(
         env.ZEROAUTH_TOKEN_TTL_SECONDS,

@@ -86,8 +86,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     throw error;
   }
 
-  const signingContextPromise = buildSigningContext(config);
-  const signingContext = (): Promise<SigningContext> => signingContextPromise;
+  let signingContextPromise: Promise<SigningContext> | undefined;
+  const signingContext = (): Promise<SigningContext> =>
+    signingContextPromise ??= buildSigningContext(config);
 
   const url = new URL(request.url);
 
@@ -106,7 +107,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
     }
 
-    if (request.method === 'GET' && url.pathname === '/authorize') {
+    if (['GET', 'POST'].includes(request.method) && url.pathname === '/authorize') {
       return await handleAuthorize(request, env, config);
     }
 

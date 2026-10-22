@@ -55,18 +55,15 @@ export function handleChangePassword(): Response {
   <body>
     <main>
       <section class="card">
-        <h1>ZeroAuth has no passwords.</h1>
+        <h1>ZeroAuth 密码管理</h1>
         <p>
-          This endpoint exists only because Google Workspace custom OIDC profiles require a
-          change-password URL.
+          所有账号共用一个登录密码。此页面不提供在线修改或找回密码功能，请联系此服务的管理者。
         </p>
         <p>
-          ZeroAuth is a no-auth test IdP. There is nothing to reset here, and no credentials are
-          stored.
+          管理者可在本地终端运行 <code>npx wrangler secret put ZEROAUTH_PASSWORD</code> 更新统一密码。
         </p>
         <p>
-          If you reached this page during testing, review your Google Admin configuration and the
-          Worker environment variables, especially <code>ZEROAUTH_ALLOW_ANY_LOGIN_HINT</code>.
+          更新密码后，旧的浏览器登录凭据失效，下次登录需要输入新密码。已建立的 Google 登录会话不会被退出。
         </p>
       </section>
     </main>

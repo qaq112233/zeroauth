@@ -4,10 +4,11 @@ import test from 'node:test';
 import { decodeJwt } from 'jose';
 
 import { handleRequest } from '../src/app.ts';
-import { basicAuthHeader, createTestEnv, parseLocation } from './test-utils.ts';
+import { basicAuthHeader, completePasswordLogin, createTestEnv, parseLocation } from './test-utils.ts';
 
 async function authorize(env: Awaited<ReturnType<typeof createTestEnv>>, query: string): Promise<Response> {
-  return handleRequest(new Request(`https://zeroauth.example/authorize?${query}`), env);
+  const response = await handleRequest(new Request(`https://zeroauth.example/authorize?${query}`), env);
+  return completePasswordLogin(response, env);
 }
 
 async function tokenRequest(
@@ -471,9 +472,9 @@ test('userinfo validates and returns claims from the access token', async () => 
   assert.ok(typeof payload.sub === 'string');
 });
 
-test('authorize is blocked until unsafe mode is explicitly enabled', async () => {
+test('authorize is blocked when the shared password is missing', async () => {
   const env = await createTestEnv({
-    ZEROAUTH_ALLOW_ANY_LOGIN_HINT: 'false',
+    ZEROAUTH_PASSWORD: '',
   });
 
   const response = await authorize(
@@ -487,9 +488,10 @@ test('authorize is blocked until unsafe mode is explicitly enabled', async () =>
     }).toString(),
   );
 
-  assert.equal(response.status, 400);
+  assert.equal(response.status, 500);
   const payload = (await response.json()) as Record<string, unknown>;
-  assert.equal(payload.error, 'invalid_request');
+  assert.equal(payload.error, 'server_error');
+  assert.match(String(payload.error_description), /ZEROAUTH_PASSWORD is required/);
 });
 
 test('template placeholder configuration returns a clear error', async () => {
